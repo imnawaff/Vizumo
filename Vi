@@ -1,8 +1,3 @@
-import SwiftUI
-import SpriteKit
-
-// MARK: - GameScene
-
 class GameScene: SKScene {
     enum State {
         case menu, playing
@@ -12,9 +7,13 @@ class GameScene: SKScene {
     var startLabel: SKLabelNode!
     var spawnTimer: Timer?
 
+    var score = 0
+    var scoreLabel: SKLabelNode!
+
     override func didMove(to view: SKView) {
         backgroundColor = .black
         showStartLabel()
+        setupScoreLabel()
     }
 
     func showStartLabel() {
@@ -26,8 +25,25 @@ class GameScene: SKScene {
         addChild(startLabel)
     }
 
+    func setupScoreLabel() {
+        scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        scoreLabel.fontSize = 28
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 80)
+        scoreLabel.text = "Score: 0"
+        scoreLabel.zPosition = 10
+        addChild(scoreLabel)
+    }
+
+    func updateScore() {
+        score += 1
+        scoreLabel.text = "Score: \(score)"
+    }
+
     func startGame() {
         gameState = .playing
+        score = 0
+        updateScore()
         startLabel.removeFromParent()
         startSpawningBalls()
     }
@@ -63,34 +79,9 @@ class GameScene: SKScene {
             for node in nodesHere {
                 if node.name == "ball" {
                     node.removeFromParent()
+                    updateScore()
                 }
             }
-        }
-    }
-}
-
-// MARK: - ContentView
-
-struct ContentView: View {
-    var scene: SKScene {
-        let scene = GameScene(size: UIScreen.main.bounds.size)
-        scene.scaleMode = .resizeFill
-        return scene
-    }
-
-    var body: some View {
-        SpriteView(scene: scene)
-            .ignoresSafeArea()
-    }
-}
-
-// MARK: - Main App Entry Point
-
-@main
-struct MyApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
         }
     }
 }

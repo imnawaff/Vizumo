@@ -61,16 +61,16 @@ class GameScene: SKScene {
     }
 
     func setupLabels() {
-        scoreLabel = createLabel(text: "Score: 0", y: frame.maxY - 60)
-        livesLabel = createLabel(text: "Lives: 3", y: frame.maxY - 100)
-        levelLabel = createLabel(text: "Level: 1", y: frame.maxY - 140)
+        scoreLabel = makeLabel(text: "Score: 0", y: frame.maxY - 60)
+        livesLabel = makeLabel(text: "Lives: 3", y: frame.maxY - 100)
+        levelLabel = makeLabel(text: "Level: 1", y: frame.maxY - 140)
 
         addChild(scoreLabel)
         addChild(livesLabel)
         addChild(levelLabel)
     }
 
-    func createLabel(text: String, y: CGFloat) -> SKLabelNode {
+    func makeLabel(text: String, y: CGFloat) -> SKLabelNode {
         let label = SKLabelNode(fontNamed: "AvenirNext-Bold")
         label.text = text
         label.fontSize = 24
@@ -91,7 +91,6 @@ class GameScene: SKScene {
         let ball = SKSpriteNode(color: .red, size: CGSize(width: 60, height: 60))
         ball.position = CGPoint(x: CGFloat.random(in: 60...(frame.width - 60)), y: frame.maxY + 60)
 
-        // Random bonus ball (10% chance)
         if Int.random(in: 1...10) == 1 {
             ball.color = .yellow
             ball.name = "bonus"
@@ -103,14 +102,14 @@ class GameScene: SKScene {
 
         let move = SKAction.moveTo(y: -60, duration: ballSpeed)
         let remove = SKAction.removeFromParent()
-        let missed = SKAction.run {
-            self.handleMissedBall()
-        }
+        let missed = SKAction.run { self.handleMissedBall() }
 
         ball.run(SKAction.sequence([move, missed, remove]))
     }
 
     func handleMissedBall() {
+        guard state == .playing else { return }
+
         lives -= 1
         updateLabels()
 
@@ -124,15 +123,15 @@ class GameScene: SKScene {
     func endGame() {
         state = .gameOver
 
-        let gameOverLabel = createLabel(text: "Game Over!", y: frame.midY + 40)
+        let gameOverLabel = makeLabel(text: "Game Over!", y: frame.midY + 40)
         gameOverLabel.fontSize = 44
         gameOverLabel.fontColor = .yellow
         addChild(gameOverLabel)
 
-        let finalScoreLabel = createLabel(text: "Final Score: \(score)", y: frame.midY)
+        let finalScoreLabel = makeLabel(text: "Final Score: \(score)", y: frame.midY)
         addChild(finalScoreLabel)
 
-        restartLabel = createLabel(text: "Tap to Restart", y: frame.midY - 40)
+        restartLabel = makeLabel(text: "Tap to Restart", y: frame.midY - 40)
         restartLabel.fontColor = .green
         addChild(restartLabel)
     }
@@ -144,17 +143,15 @@ class GameScene: SKScene {
         switch state {
         case .menu:
             startGame()
+
         case .playing:
-            let nodesAtPoint = nodes(at: location)
-            for node in nodesAtPoint {
+            let touchedNodes = nodes(at: location)
+            for node in touchedNodes {
                 if node.name == "normal" || node.name == "bonus" {
                     node.removeFromParent()
                     tapSound?.play()
-                    if node.name == "bonus" {
-                        score += 5
-                    } else {
-                        score += 1
-                    }
+
+                    score += (node.name == "bonus") ? 5 : 1
 
                     if score % 10 == 0 {
                         level += 1
@@ -166,6 +163,7 @@ class GameScene: SKScene {
                     return
                 }
             }
+
         case .gameOver:
             if restartLabel.contains(location) {
                 startGame()

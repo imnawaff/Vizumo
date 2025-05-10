@@ -1,12 +1,26 @@
+import SwiftUI
 import SpriteKit
-import PlaygroundSupport
+
+struct ContentView: View {
+    var scene: SKScene {
+        let scene = GameScene()
+        scene.size = CGSize(width: 400, height: 600)
+        scene.scaleMode = .resizeFill
+        return scene
+    }
+
+    var body: some View {
+        SpriteView(scene: scene)
+            .frame(width: 400, height: 600)
+            .ignoresSafeArea()
+    }
+}
 
 class GameScene: SKScene {
-    
     var scoreLabel: SKLabelNode!
     var ball: SKSpriteNode!
     var score = 0
-    
+
     override func didMove(to view: SKView) {
         backgroundColor = .cyan
         
@@ -18,12 +32,12 @@ class GameScene: SKScene {
         
         spawnBall()
     }
-    
+
     func spawnBall() {
         ball = SKSpriteNode(color: .red, size: CGSize(width: 50, height: 50))
         ball.position = CGPoint(x: CGFloat.random(in: 50...frame.width - 50), y: frame.height + 50)
         addChild(ball)
-        
+
         let moveDown = SKAction.moveTo(y: -50, duration: 4)
         let remove = SKAction.removeFromParent()
         let sequence = SKAction.sequence([moveDown, remove])
@@ -31,11 +45,11 @@ class GameScene: SKScene {
             self.spawnBall()
         }
     }
-    
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
-        
+
         if ball.contains(location) {
             ball.removeFromParent()
             score += 1
@@ -44,10 +58,3 @@ class GameScene: SKScene {
         }
     }
 }
-
-let sceneView = SKView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
-let scene = GameScene(size: sceneView.frame.size)
-scene.scaleMode = .resizeFill
-sceneView.presentScene(scene)
-
-PlaygroundPage.current.liveView = sceneView

@@ -1,44 +1,83 @@
 import SwiftUI
 import SpriteKit
+import AVFoundation
 
 struct ContentView: View {
     var scene: SKScene {
         let scene = GameScene()
-        scene.size = CGSize(width: 400, height: 600)
+        scene.size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         scene.scaleMode = .resizeFill
         return scene
     }
 
     var body: some View {
         SpriteView(scene: scene)
-            .frame(width: 400, height: 600)
             .ignoresSafeArea()
     }
 }
 
 class GameScene: SKScene {
     var scoreLabel: SKLabelNode!
+    var timerLabel: SKLabelNode!
     var ball: SKSpriteNode!
     var score = 0
+    var gameTimer: Timer?
+    var timeLeft = 60
+    var gameOverDisplayed = false
+    var tapSound: AVAudioPlayer?
 
     override func didMove(to view: SKView) {
-        backgroundColor = .cyan
-        
+        backgroundColor = .black
+
+        setupLabels()
+        startGameTimer()
+        spawnBall()
+        loadSound()
+    }
+
+    func setupLabels() {
         scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        scoreLabel.fontSize = 36
-        scoreLabel.position = CGPoint(x: frame.midX, y: frame.height - 60)
+        scoreLabel.fontSize = 32
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 70)
         scoreLabel.text = "Score: 0"
         addChild(scoreLabel)
-        
-        spawnBall()
+
+        timerLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        timerLabel.fontSize = 28
+        timerLabel.fontColor = .white
+        timerLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 110)
+        timerLabel.text = "Time: 60"
+        addChild(timerLabel)
+    }
+
+    func startGameTimer() {
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            self.timeLeft -= 1
+            self.timerLabel.text = "Time: \(self.timeLeft)"
+
+            if self.timeLeft <= 0 {
+                timer.invalidate()
+                self.endGame()
+            }
+        }
+    }
+
+    func loadSound() {
+        if let soundURL = Bundle.main.url(forResource: "click", withExtension: "wav") {
+            tapSound = try? AVAudioPlayer(contentsOf: soundURL)
+            tapSound?.prepareToPlay()
+        }
     }
 
     func spawnBall() {
-        ball = SKSpriteNode(color: .red, size: CGSize(width: 50, height: 50))
-        ball.position = CGPoint(x: CGFloat.random(in: 50...frame.width - 50), y: frame.height + 50)
+        guard timeLeft > 0 else { return }
+
+        ball = SKSpriteNode(color: .red, size: CGSize(width: 60, height: 60))
+        ball.position = CGPoint(x: CGFloat.random(in: 60...(frame.width - 60)), y: frame.maxY + 60)
         addChild(ball)
 
-        let moveDown = SKAction.moveTo(y: -50, duration: 4)
+        let moveDown = SKAction.moveTo(y: -60, duration: 3)
         let remove = SKAction.removeFromParent()
         let sequence = SKAction.sequence([moveDown, remove])
         ball.run(sequence) {
@@ -52,9 +91,29 @@ class GameScene: SKScene {
 
         if ball.contains(location) {
             ball.removeFromParent()
+            tapSound?.play()
             score += 1
             scoreLabel.text = "Score: \(score)"
             spawnBall()
         }
+    }
+
+    func endGame() {
+        ball.removeFromParent()
+        gameOverDisplayed = true
+
+        let gameOverLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        gameOverLabel.fontSize = 44
+        gameOverLabel.fontColor = .yellow
+        gameOverLabel.text = "Game Over!"
+        gameOverLabel.position = CGPoint(x: frame.midX, y: frame.midY + 20)
+        addChild(gameOverLabel)
+
+        let finalScoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        finalScoreLabel.fontSize = 32
+        finalScoreLabel.fontColor = .white
+        finalScoreLabel.text = "Final Score: \(score)"
+        finalScoreLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
+        addChild(finalScoreLabel)
     }
 }

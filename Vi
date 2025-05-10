@@ -1,3 +1,8 @@
+import SwiftUI
+import SpriteKit
+
+// MARK: - GameScene
+
 class GameScene: SKScene {
     enum State {
         case menu, playing
@@ -28,15 +33,10 @@ class GameScene: SKScene {
     }
 
     func startSpawningBalls() {
-        spawnBall() // drop one immediately
+        spawnBall()
         spawnTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
             self.spawnBall()
         }
-    }
-
-    func stopSpawningBalls() {
-        spawnTimer?.invalidate()
-        spawnTimer = nil
     }
 
     func spawnBall() {
@@ -63,9 +63,34 @@ class GameScene: SKScene {
             for node in nodesHere {
                 if node.name == "ball" {
                     node.removeFromParent()
-                    // Later: add score, sound, etc.
                 }
             }
+        }
+    }
+}
+
+// MARK: - ContentView
+
+struct ContentView: View {
+    var scene: SKScene {
+        let scene = GameScene(size: UIScreen.main.bounds.size)
+        scene.scaleMode = .resizeFill
+        return scene
+    }
+
+    var body: some View {
+        SpriteView(scene: scene)
+            .ignoresSafeArea()
+    }
+}
+
+// MARK: - Main App Entry Point
+
+@main
+struct MyApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
         }
     }
 }

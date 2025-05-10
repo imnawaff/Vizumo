@@ -1,139 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Your Template Store</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #0f0f0f;
-      color: white;
+import SwiftUI
+import SpriteKit
+
+struct ContentView: View {
+    var scene: SKScene {
+        let scene = GameScene()
+        scene.size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        scene.scaleMode = .resizeFill
+        return scene
     }
 
-    header {
-      background: linear-gradient(to right, #7B2FF7, #F107A3);
-      padding: 20px 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    var body: some View {
+        SpriteView(scene: scene)
+            .ignoresSafeArea()
+    }
+}
+
+class GameScene: SKScene {
+    var scoreLabel: SKLabelNode!
+    var ball: SKSpriteNode!
+    var score = 0
+
+    override func didMove(to view: SKView) {
+        backgroundColor = .blue
+
+        scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        scoreLabel.fontSize = 36
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 80)
+        scoreLabel.text = "Score: 0"
+        addChild(scoreLabel)
+
+        spawnBall()
     }
 
-    nav a {
-      margin: 0 15px;
-      text-decoration: none;
-      color: white;
-      font-weight: 500;
+    func spawnBall() {
+        ball = SKSpriteNode(color: .red, size: CGSize(width: 60, height: 60))
+        ball.position = CGPoint(x: CGFloat.random(in: 60...(frame.width - 60)), y: frame.maxY + 60)
+        addChild(ball)
+
+        let moveDown = SKAction.moveTo(y: -60, duration: 4)
+        let remove = SKAction.removeFromParent()
+        let sequence = SKAction.sequence([moveDown, remove])
+        ball.run(sequence) {
+            self.spawnBall()
+        }
     }
 
-    .hero {
-      text-align: center;
-      padding: 100px 20px;
-      background: radial-gradient(circle, #1a1a1a, #0f0f0f);
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: self)
+
+        if ball.contains(location) {
+            ball.removeFromParent()
+            score += 1
+            scoreLabel.text = "Score: \(score)"
+            spawnBall()
+        }
     }
-
-    .hero h1 {
-      font-size: 3em;
-      margin-bottom: 20px;
-    }
-
-    .hero p {
-      font-size: 1.2em;
-      color: #cccccc;
-      margin-bottom: 30px;
-    }
-
-    .hero button {
-      background: linear-gradient(to right, #7B2FF7, #F107A3);
-      border: none;
-      padding: 12px 30px;
-      color: white;
-      font-size: 1em;
-      border-radius: 25px;
-      cursor: pointer;
-    }
-
-    .section {
-      padding: 60px 20px;
-      text-align: center;
-    }
-
-    .product {
-      display: inline-block;
-      width: 250px;
-      margin: 20px;
-      background-color: #1c1c1c;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 0 20px rgba(255, 0, 150, 0.1);
-    }
-
-    .product h3 {
-      color: #f107a3;
-    }
-
-    footer {
-      background-color: #111;
-      padding: 20px;
-      text-align: center;
-      font-size: 0.9em;
-      color: #888;
-    }
-  </style>
-</head>
-<body>
-
-<header>
-  <div><strong>Your Store</strong></div>
-  <nav>
-    <a href="#">Home</a>
-    <a href="#products">Templates</a>
-    <a href="#learn">Learn</a>
-    <a href="#contact">Contact</a>
-  </nav>
-</header>
-
-<section class="hero">
-  <h1>Design & Learn with Ease</h1>
-  <p>Download CapCut, Canva, and PowerPoint templates — or learn how to make them.</p>
-  <button>Explore Now</button>
-</section>
-
-<section class="section" id="products">
-  <h2>Templates for You</h2>
-  <div class="product">
-    <h3>Canvas Templates</h3>
-    <p>Editable, trendy templates for your content</p>
-    <button>Download</button>
-  </div>
-  <div class="product">
-    <h3>PowerPoint Slides</h3>
-    <p>Perfect for school, business or projects</p>
-    <button>Download</button>
-  </div>
-  <div class="product">
-    <h3>CapCut Edits</h3>
-    <p>Ready-to-use CapCut trends and styles</p>
-    <button>Download</button>
-  </div>
-</section>
-
-<section class="section" id="learn">
-  <h2>Learn How to Create</h2>
-  <p>Watch tutorials and improve your design skills!</p>
-  <button>Start Learning</button>
-</section>
-
-<section class="section" id="contact">
-  <h2>Contact Me</h2>
-  <p>Have questions or custom requests? Let's talk!</p>
-  <button>Email Me</button>
-</section>
-
-<footer>
-  © 2025 Your Store – All rights reserved.
-</footer>
-
-</body>
-</html>
+}

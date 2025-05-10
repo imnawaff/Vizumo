@@ -1,5 +1,7 @@
+import SwiftUI
 import SpriteKit
 import AVFoundation
+import PlaygroundSupport
 
 class GameScene: SKScene {
     enum GameState {
@@ -143,7 +145,6 @@ class GameScene: SKScene {
         switch state {
         case .menu:
             startGame()
-
         case .playing:
             let touchedNodes = nodes(at: location)
             for node in touchedNodes {
@@ -163,7 +164,6 @@ class GameScene: SKScene {
                     return
                 }
             }
-
         case .gameOver:
             if restartLabel.contains(location) {
                 startGame()
@@ -171,3 +171,23 @@ class GameScene: SKScene {
         }
     }
 }
+
+// MARK: - Setup SpriteKit view inside SwiftUI
+
+struct ContentView: View {
+    var scene: SKScene {
+        let scene = GameScene()
+        scene.size = CGSize(width: 400, height: 700)
+        scene.scaleMode = .fill
+        return scene
+    }
+
+    var body: some View {
+        SpriteView(scene: scene)
+            .ignoresSafeArea()
+    }
+}
+
+// MARK: - Launch the App
+
+PlaygroundPage.current.setLiveView(ContentView())

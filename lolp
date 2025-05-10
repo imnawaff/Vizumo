@@ -1,48 +1,123 @@
-import SwiftUI
-import SpriteKit
-
-struct ContentView: View {
-    var scene: SKScene {
-        let scene = GameScene()
-        scene.size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-        scene.scaleMode = .resizeFill
-        return scene
-    }
-
-    var body: some View {
-        SpriteView(scene: scene)
-            .ignoresSafeArea()
-    }
-}
-
 class GameScene: SKScene {
+    enum GameState {
+        case menu, playing, gameOver
+    }
+
+    var state: GameState = .menu
+
     var scoreLabel: SKLabelNode!
+    var livesLabel: SKLabelNode!
+    var levelLabel: SKLabelNode!
     var ball: SKSpriteNode!
+    var startLabel: SKLabelNode!
+    var restartLabel: SKLabelNode!
+
     var score = 0
+    var lives = 3
+    var level = 1
+    var ballSpeed: TimeInterval = 3.0
+    var tapSound: AVAudioPlayer?
 
     override func didMove(to view: SKView) {
-        backgroundColor = .blue
+        backgroundColor = .black
+        loadSound()
+        showMainMenu()
+    }
 
-        scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        scoreLabel.fontSize = 36
-        scoreLabel.fontColor = .white
-        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 80)
-        scoreLabel.text = "Score: 0"
-        addChild(scoreLabel)
+    func showMainMenu() {
+        state = .menu
+        removeAllChildren()
 
+        startLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        startLabel.fontSize = 36
+        startLabel.fontColor = .green
+        startLabel.text = "Tap to Start"
+        startLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        addChild(startLabel)
+    }
+
+    func startGame() {
+        state = .playing
+        removeAllChildren()
+        setupLabels()
+
+        score = 0
+        level = 1
+        lives = 3
+        ballSpeed = 3.0
+
+        updateLabels()
         spawnBall()
     }
 
+    func setupLabels() {
+        scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        scoreLabel.fontSize = 28
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
+        addChild(scoreLabel)
+
+        livesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        livesLabel.fontSize = 24
+        livesLabel.fontColor = .white
+        livesLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 100)
+        addChild(livesLabel)
+
+        levelLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        levelLabel.fontSize = 20
+        levelLabel.fontColor = .white
+        levelLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 130)
+        addChild(levelLabel)
+    }
+
+    func updateLabels() {
+        scoreLabel.text = "Score: \(score)"
+        livesLabel.text = "Lives: \(lives)"
+        levelLabel.text = "Level: \(level)"
+    }
+
+    func loadSound() {
+        if let soundURL = Bundle.main.url(forResource: "click", withExtension: "wav") {
+            tapSound = try? AVAudioPlayer(contentsOf: soundURL)
+            tapSound?.prepareToPlay()
+        }
+    }
+
     func spawnBall() {
-        ball = SKSpriteNode(color: .red, size: CGSize(width: 60, height: 60))
+        guard state == .playing, lives > 0 else { return }
+
+        let size = CGSize(width: 60, height: 60)
+        ball = SKSpriteNode(color: .red, size: size)
+
+        // Random color
+        let chance = Int.random(in: 1...10)
+        if chance == 1 {
+            ball.color = .yellow // Bonus ball
+            ball.name = "bonus"
+        } else {
+            ball.color = .red
+            ball.name = "normal"
+        }
+
         ball.position = CGPoint(x: CGFloat.random(in: 60...(frame.width - 60)), y: frame.maxY + 60)
         addChild(ball)
 
-        let moveDown = SKAction.moveTo(y: -60, duration: 4)
+        let moveDown = SKAction.moveTo(y: -60, duration: ballSpeed)
         let remove = SKAction.removeFromParent()
         let sequence = SKAction.sequence([moveDown, remove])
         ball.run(sequence) {
-            self.spawnBall()
+            self.handleMissedBall()
+        }
+    }
+
+    func handleMissedBall() {
+        guard state == .playing else { return }
+        lives -= 1
+        updateLabels()
+        if lives <= 0 {
+            endGame()
+        } else {
+            spawnBall()
         }
     }
 
@@ -50,11 +125,59 @@ class GameScene: SKScene {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
 
-        if ball.contains(location) {
-            ball.removeFromParent()
-            score += 1
-            scoreLabel.text = "Score: \(score)"
-            spawnBall()
+        switch state {
+        case .menu:
+            startGame()
+        case .playing:
+            if let ball = nodes(at: location).first(where: { $0.name == "normal" || $0.name == "bonus" }) as? SKSpriteNode {
+                ball.removeFromParent()
+                tapSound?.play()
+
+                if ball.name == "bonus" {
+                    score += 5
+                } else {
+                    score += 1
+                }
+
+                // Level up every 10 points
+                if score % 10 == 0 {
+                    level += 1
+                    ballSpeed = max(1.0, ballSpeed - 0.3)
+                }
+
+                updateLabels()
+                spawnBall()
+            }
+        case .gameOver:
+            if restartLabel.contains(location) {
+                startGame()
+            }
         }
+    }
+
+    func endGame() {
+        state = .gameOver
+        ball.removeFromParent()
+
+        let gameOverLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        gameOverLabel.fontSize = 44
+        gameOverLabel.fontColor = .yellow
+        gameOverLabel.text = "Game Over!"
+        gameOverLabel.position = CGPoint(x: frame.midX, y: frame.midY + 40)
+        addChild(gameOverLabel)
+
+        let finalScoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        finalScoreLabel.fontSize = 28
+        finalScoreLabel.fontColor = .white
+        finalScoreLabel.text = "Final Score: \(score)"
+        finalScoreLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        addChild(finalScoreLabel)
+
+        restartLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        restartLabel.fontSize = 28
+        restartLabel.fontColor = .green
+        restartLabel.text = "Tap to Restart"
+        restartLabel.position = CGPoint(x: frame.midX, y: frame.midY - 40)
+        addChild(restartLabel)
     }
 }

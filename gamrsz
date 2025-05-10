@@ -172,26 +172,3 @@ class GameScene: SKScene {
         }
     }
 }
-
-struct ContentView: View {
-    var scene: SKScene {
-        let scene = GameScene()
-        scene.size = CGSize(width: 400, height: 700)
-        scene.scaleMode = .fill
-        return scene
-    }
-
-    var body: some View {
-        SpriteView(scene: scene)
-            .ignoresSafeArea()
-    }
-}
-
-@main
-struct MyGameApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}

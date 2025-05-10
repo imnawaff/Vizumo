@@ -1,3 +1,30 @@
+import SwiftUI
+import SpriteKit
+
+struct ContentView: View {
+    var scene: SKScene {
+        let scene = SKScene(size: UIScreen.main.bounds.size)
+        scene.scaleMode = .resizeFill
+        scene.backgroundColor = .blue
+
+        let ball = SKShapeNode(circleOfRadius: 30)
+        ball.fillColor = .red
+        ball.position = CGPoint(x: scene.size.width / 2, y: scene.size.height - 50)
+
+        let move = SKAction.moveTo(y: 0, duration: 2.0)
+        ball.run(move)
+
+        scene.addChild(ball)
+
+        return scene
+    }
+
+    var body: some View {
+        SpriteView(scene: scene)
+            .ignoresSafeArea()
+    }
+}
+
 @main
 struct MyApp: App {
     var body: some Scene {

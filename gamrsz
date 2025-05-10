@@ -1,7 +1,6 @@
 import SwiftUI
 import SpriteKit
 import AVFoundation
-import PlaygroundSupport
 
 class GameScene: SKScene {
     enum GameState {
@@ -33,6 +32,8 @@ class GameScene: SKScene {
         if let url = Bundle.main.url(forResource: "click", withExtension: "wav") {
             tapSound = try? AVAudioPlayer(contentsOf: url)
             tapSound?.prepareToPlay()
+        } else {
+            tapSound = nil
         }
     }
 
@@ -172,8 +173,6 @@ class GameScene: SKScene {
     }
 }
 
-// MARK: - Setup SpriteKit view inside SwiftUI
-
 struct ContentView: View {
     var scene: SKScene {
         let scene = GameScene()
@@ -188,6 +187,11 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Launch the App
-
-PlaygroundPage.current.setLiveView(ContentView())
+@main
+struct MyGameApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}

@@ -8,11 +8,13 @@ class GameScene: SKScene {
     override func didMove(to view: SKView) {
         backgroundColor = .black
 
+        // Create the player
         player = SKSpriteNode(color: .cyan, size: CGSize(width: 50, height: 50))
         player.position = CGPoint(x: size.width / 2, y: 100)
         addChild(player)
     }
 
+    // Allow finger movement
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = touches.first {
             let location = touch.location(in: self)
@@ -21,9 +23,11 @@ class GameScene: SKScene {
     }
 }
 
-let sceneView = SKView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
-let scene = GameScene(size: sceneView.frame.size)
+// Set up the scene and view
+let view = SKView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+let scene = GameScene(size: view.frame.size)
 scene.scaleMode = .resizeFill
-sceneView.presentScene(scene)
+view.presentScene(scene)
 
-PlaygroundPage.current.liveView = sceneView
+// Show it in the live view
+PlaygroundPage.current.liveView = view

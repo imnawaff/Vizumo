@@ -3,46 +3,63 @@ import SwiftUI
 struct ContentView: View {
     @State private var playerX: CGFloat = UIScreen.main.bounds.width / 2
     @State private var enemies: [Enemy] = []
-    @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var lastSpawnTime: Date = Date()
     @State private var gameOver = false
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        TimelineView(.animation) { timeline in
+            let _ = updateGame(currentTime: timeline.date)
 
-            // Player
-            Rectangle()
-                .fill(Color.cyan)
-                .frame(width: 50, height: 50)
-                .position(x: playerX, y: UIScreen.main.bounds.height - 100)
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            // Enemies
-            ForEach(enemies) { enemy in
+                // Player
                 Rectangle()
-                    .fill(Color.red)
-                    .frame(width: 40, height: 40)
-                    .position(enemy.position)
-            }
+                    .fill(Color.cyan)
+                    .frame(width: 50, height: 50)
+                    .position(x: playerX, y: UIScreen.main.bounds.height - 100)
 
-            // Game Over Text
-            if gameOver {
-                Text("Game Over")
-                    .foregroundColor(.white)
-                    .font(.largeTitle)
-            }
-        }
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    playerX = value.location.x
+                // Enemies
+                ForEach(enemies) { enemy in
+                    Rectangle()
+                        .fill(Color.red)
+                        .frame(width: 40, height: 40)
+                        .position(enemy.position)
                 }
-        )
-        .onReceive(timer) { _ in
-            guard !gameOver else { return }
-            spawnEnemy()
-            updateEnemies()
-            checkCollision()
+
+                // Game Over Text
+                if gameOver {
+                    Text("Game Over")
+                        .foregroundColor(.white)
+                        .font(.largeTitle)
+                }
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        playerX = value.location.x
+                    }
+            )
         }
+    }
+
+    func updateGame(currentTime: Date) {
+        guard !gameOver else { return }
+
+        // Spawn new enemy every 1.5 seconds
+        if currentTime.timeIntervalSince(lastSpawnTime) > 1.5 {
+            spawnEnemy()
+            lastSpawnTime = currentTime
+        }
+
+        // Move enemies down and remove off-screen
+        for i in enemies.indices {
+            enemies[i].position.y += 5
+        }
+        enemies.removeAll { $0.position.y > UIScreen.main.bounds.height }
+
+        // Check collisions
+        checkCollision()
     }
 
     func spawnEnemy() {
@@ -51,20 +68,14 @@ struct ContentView: View {
         enemies.append(newEnemy)
     }
 
-    func updateEnemies() {
-        for i in enemies.indices {
-            enemies[i].position.y += 15
-        }
-        enemies.removeAll { $0.position.y > UIScreen.main.bounds.height }
-    }
-
     func checkCollision() {
+        let playerFrame = CGRect(x: playerX - 25, y: UIScreen.main.bounds.height - 125, width: 50, height: 50)
+
         for enemy in enemies {
-            let playerFrame = CGRect(x: playerX - 25, y: UIScreen.main.bounds.height - 125, width: 50, height: 50)
             let enemyFrame = CGRect(x: enemy.position.x - 20, y: enemy.position.y - 20, width: 40, height: 40)
             if playerFrame.intersects(enemyFrame) {
                 gameOver = true
-                timer.upstream.connect().cancel()
+                break
             }
         }
     }

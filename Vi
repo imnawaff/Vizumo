@@ -1,87 +1,111 @@
-class GameScene: SKScene {
-    enum State {
-        case menu, playing
-    }
+import PlaygroundSupport
+import SpriteKit
+import UIKit
 
-    var gameState: State = .menu
-    var startLabel: SKLabelNode!
-    var spawnTimer: Timer?
-
-    var score = 0
+class GameScene: SKScene, SKPhysicsContactDelegate {
+    var player: SKSpriteNode!
     var scoreLabel: SKLabelNode!
-
-    override func didMove(to view: SKView) {
-        backgroundColor = .black
-        showStartLabel()
-        setupScoreLabel()
-    }
-
-    func showStartLabel() {
-        startLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        startLabel.text = "Tap to Start"
-        startLabel.fontSize = 36
-        startLabel.fontColor = .green
-        startLabel.position = CGPoint(x: frame.midX, y: frame.midY)
-        addChild(startLabel)
-    }
-
-    func setupScoreLabel() {
-        scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        scoreLabel.fontSize = 28
-        scoreLabel.fontColor = .white
-        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 80)
-        scoreLabel.text = "Score: 0"
-        scoreLabel.zPosition = 10
-        addChild(scoreLabel)
-    }
-
-    func updateScore() {
-        score += 1
-        scoreLabel.text = "Score: \(score)"
-    }
-
-    func startGame() {
-        gameState = .playing
-        score = 0
-        updateScore()
-        startLabel.removeFromParent()
-        startSpawningBalls()
-    }
-
-    func startSpawningBalls() {
-        spawnBall()
-        spawnTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
-            self.spawnBall()
+    var score = 0 {
+        didSet {
+            scoreLabel.text = "Score: \(score)"
         }
     }
 
-    func spawnBall() {
-        let ball = SKShapeNode(circleOfRadius: 30)
-        ball.fillColor = .red
-        ball.name = "ball"
-        let x = CGFloat.random(in: 60...(size.width - 60))
-        ball.position = CGPoint(x: x, y: size.height + 60)
-        addChild(ball)
+    let playerCategory: UInt32 = 0x1 << 0
+    let bulletCategory: UInt32 = 0x1 << 1
+    let enemyCategory: UInt32 = 0x1 << 2
 
-        let move = SKAction.moveTo(y: -60, duration: 3.0)
-        let remove = SKAction.removeFromParent()
-        ball.run(SKAction.sequence([move, remove]))
+    override func didMove(to view: SKView) {
+        backgroundColor = .black
+        physicsWorld.contactDelegate = self
+
+        player = SKSpriteNode(color: .cyan, size: CGSize(width: 50, height: 50))
+        player.position = CGPoint(x: size.width / 2, y: 100)
+        player.physicsBody = SKPhysicsBody(rectangleOf: player.size)
+        player.physicsBody?.isDynamic = false
+        player.physicsBody?.categoryBitMask = playerCategory
+        addChild(player)
+
+        scoreLabel = SKLabelNode(fontNamed: "Arial")
+        scoreLabel.fontSize = 24
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: size.width / 2, y: size.height - 50)
+        score = 0
+        addChild(scoreLabel)
+
+        let spawn = SKAction.run { self.spawnEnemy() }
+        let delay = SKAction.wait(forDuration: 1)
+        run(SKAction.repeatForever(SKAction.sequence([spawn, delay])))
     }
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let location = touches.first?.location(in: self) else { return }
+    func spawnEnemy() {
+        let enemy = SKSpriteNode(color: .red, size: CGSize(width: 40, height: 40))
+        let x = CGFloat.random(in: 40...(size.width - 40))
+        enemy.position = CGPoint(x: x, y: size.height + 40)
+        enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.size)
+        enemy.physicsBody?.isDynamic = true
+        enemy.physicsBody?.categoryBitMask = enemyCategory
+        enemy.physicsBody?.contactTestBitMask = bulletCategory
+        enemy.physicsBody?.collisionBitMask = 0
+        addChild(enemy)
 
-        switch gameState {
-        case .menu:
-            startGame()
-        case .playing:
-            let nodesHere = nodes(at: location)
-            for node in nodesHere {
-                if node.name == "ball" {
-                    node.removeFromParent()
-                    updateScore()
-                }
+        let move = SKAction.moveTo(y: -50, duration: 5)
+        let remove = SKAction.removeFromParent()
+        enemy.run(SKAction.sequence([move, remove]))
+    }
+
+    func fireBullet() {
+        let bullet = SKSpriteNode(color: .yellow, size: CGSize(width: 10, height: 30))
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y + 30)
+        bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.size)
+        bullet.physicsBody?.isDynamic = true
+        bullet.physicsBody?.categoryBitMask = bulletCategory
+        bullet.physicsBody?.contactTestBitMask = enemyCategory
+        bullet.physicsBody?.collisionBitMask = 0
+        bullet.physicsBody?.usesPreciseCollisionDetection = true
+        addChild(bullet)
+
+        let move = SKAction.moveTo(y: size.height + 50, duration: 1)
+        let remove = SKAction.removeFromParent()
+        bullet.run(SKAction.sequence([move, remove]))
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let touch = touches.first {
+            let location = touch.location(in: self)
+            player.position.x = location.x
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        fireBullet()
+    }
+
+    func didBegin(_ contact: SKPhysicsContact) {
+        var firstBody: SKPhysicsBody
+        var secondBody: SKPhysicsBody
+
+        if contact.bodyA.categoryBitMask < contact.bodyB.categoryBitMask {
+            firstBody = contact.bodyA
+            secondBody = contact.bodyB
+        } else {
+            firstBody = contact.bodyB
+            secondBody = contact.bodyA
+        }
+
+        if firstBody.categoryBitMask == bulletCategory && secondBody.categoryBitMask == enemyCategory {
+            if let enemy = secondBody.node {
+                enemy.removeFromParent()
+                firstBody.node?.removeFromParent()
+                score += 1
             }
         }
     }
 }
+
+let sceneView = SKView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+let scene = GameScene(size: sceneView.frame.size)
+scene.scaleMode = .resizeFill
+sceneView.presentScene(scene)
+
+PlaygroundPage.current.liveView = sceneView

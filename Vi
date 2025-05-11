@@ -2,103 +2,21 @@ import PlaygroundSupport
 import SpriteKit
 import UIKit
 
-class GameScene: SKScene, SKPhysicsContactDelegate {
+class GameScene: SKScene {
     var player: SKSpriteNode!
-    var scoreLabel: SKLabelNode!
-    var score = 0 {
-        didSet {
-            scoreLabel.text = "Score: \(score)"
-        }
-    }
-
-    let playerCategory: UInt32 = 0x1 << 0
-    let bulletCategory: UInt32 = 0x1 << 1
-    let enemyCategory: UInt32 = 0x1 << 2
 
     override func didMove(to view: SKView) {
         backgroundColor = .black
-        physicsWorld.contactDelegate = self
 
         player = SKSpriteNode(color: .cyan, size: CGSize(width: 50, height: 50))
         player.position = CGPoint(x: size.width / 2, y: 100)
-        player.physicsBody = SKPhysicsBody(rectangleOf: player.size)
-        player.physicsBody?.isDynamic = false
-        player.physicsBody?.categoryBitMask = playerCategory
         addChild(player)
-
-        scoreLabel = SKLabelNode(fontNamed: "Arial")
-        scoreLabel.fontSize = 24
-        scoreLabel.fontColor = .white
-        scoreLabel.position = CGPoint(x: size.width / 2, y: size.height - 50)
-        score = 0
-        addChild(scoreLabel)
-
-        let spawn = SKAction.run { self.spawnEnemy() }
-        let delay = SKAction.wait(forDuration: 1)
-        run(SKAction.repeatForever(SKAction.sequence([spawn, delay])))
-    }
-
-    func spawnEnemy() {
-        let enemy = SKSpriteNode(color: .red, size: CGSize(width: 40, height: 40))
-        let x = CGFloat.random(in: 40...(size.width - 40))
-        enemy.position = CGPoint(x: x, y: size.height + 40)
-        enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.size)
-        enemy.physicsBody?.isDynamic = true
-        enemy.physicsBody?.categoryBitMask = enemyCategory
-        enemy.physicsBody?.contactTestBitMask = bulletCategory
-        enemy.physicsBody?.collisionBitMask = 0
-        addChild(enemy)
-
-        let move = SKAction.moveTo(y: -50, duration: 5)
-        let remove = SKAction.removeFromParent()
-        enemy.run(SKAction.sequence([move, remove]))
-    }
-
-    func fireBullet() {
-        let bullet = SKSpriteNode(color: .yellow, size: CGSize(width: 10, height: 30))
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y + 30)
-        bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.size)
-        bullet.physicsBody?.isDynamic = true
-        bullet.physicsBody?.categoryBitMask = bulletCategory
-        bullet.physicsBody?.contactTestBitMask = enemyCategory
-        bullet.physicsBody?.collisionBitMask = 0
-        bullet.physicsBody?.usesPreciseCollisionDetection = true
-        addChild(bullet)
-
-        let move = SKAction.moveTo(y: size.height + 50, duration: 1)
-        let remove = SKAction.removeFromParent()
-        bullet.run(SKAction.sequence([move, remove]))
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = touches.first {
             let location = touch.location(in: self)
             player.position.x = location.x
-        }
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        fireBullet()
-    }
-
-    func didBegin(_ contact: SKPhysicsContact) {
-        var firstBody: SKPhysicsBody
-        var secondBody: SKPhysicsBody
-
-        if contact.bodyA.categoryBitMask < contact.bodyB.categoryBitMask {
-            firstBody = contact.bodyA
-            secondBody = contact.bodyB
-        } else {
-            firstBody = contact.bodyB
-            secondBody = contact.bodyA
-        }
-
-        if firstBody.categoryBitMask == bulletCategory && secondBody.categoryBitMask == enemyCategory {
-            if let enemy = secondBody.node {
-                enemy.removeFromParent()
-                firstBody.node?.removeFromParent()
-                score += 1
-            }
         }
     }
 }

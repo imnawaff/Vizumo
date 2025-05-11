@@ -1,29 +1,198 @@
 import SwiftUI
 import SpriteKit
 
-// 1. SpriteKit Game Scene
-class GameScene: SKScene {
+// MARK: - Game Scene
+class GameScene: SKScene, SKPhysicsContactDelegate {
     let player = SKSpriteNode(color: .cyan, size: CGSize(width: 50, height: 50))
-    
+    var lastFireTime = Date()
+    var score = 0
+    var health = 3
+    var scoreLabel = SKLabelNode()
+    var healthLabel = SKLabelNode()
+    var gameOverLabel = SKLabelNode()
+    var isGameOver = false
+    var finalBossSpawned = false
+    var restartCallback: (() -> Void)?
+
+    let bulletCategory: UInt32 = 0x1 << 0
+    let enemyCategory: UInt32  = 0x1 << 1
+    let playerCategory: UInt32 = 0x1 << 2
+
     override func didMove(to view: SKView) {
         backgroundColor = .black
-        
+        physicsWorld.contactDelegate = self
+
         player.position = CGPoint(x: size.width / 2, y: 100)
+        player.physicsBody = SKPhysicsBody(rectangleOf: player.size)
+        player.physicsBody?.categoryBitMask = playerCategory
+        player.physicsBody?.contactTestBitMask = enemyCategory
+        player.physicsBody?.collisionBitMask = 0
+        player.physicsBody?.isDynamic = false
         addChild(player)
-        
-        // Spawn bullets when screen is tapped
-        let tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(fireBullet))
-        view.addGestureRecognizer(tapRecognizer)
+
+        scoreLabel.fontSize = 20
+        scoreLabel.fontColor = .white
+        scoreLabel.position = CGPoint(x: 70, y: size.height - 40)
+        addChild(scoreLabel)
+
+        healthLabel.fontSize = 20
+        healthLabel.fontColor = .white
+        healthLabel.position = CGPoint(x: size.width - 70, y: size.height - 40)
+        addChild(healthLabel)
+
+        gameOverLabel.fontSize = 32
+        gameOverLabel.fontColor = .red
+        gameOverLabel.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        gameOverLabel.isHidden = true
+        addChild(gameOverLabel)
+
+        spawnEnemyLoop()
+        updateLabels()
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(fireBullet))
+        view.addGestureRecognizer(tap)
+    }
+
+    func spawnEnemyLoop() {
+        run(SKAction.repeatForever(
+            SKAction.sequence([
+                SKAction.run(spawnEnemy),
+                SKAction.wait(forDuration: 1.0)
+            ])
+        ))
+    }
+
+    func spawnEnemy() {
+        if isGameOver { return }
+
+        if score >= 20 && !finalBossSpawned {
+            spawnBoss()
+            finalBossSpawned = true
+            return
+        }
+
+        let enemy = SKSpriteNode(color: .red, size: CGSize(width: 40, height: 40))
+        let x = CGFloat.random(in: 40...(size.width - 40))
+        enemy.position = CGPoint(x: x, y: size.height + 20)
+        enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.size)
+        enemy.physicsBody?.categoryBitMask = enemyCategory
+        enemy.physicsBody?.contactTestBitMask = bulletCategory | playerCategory
+        enemy.physicsBody?.collisionBitMask = 0
+        enemy.physicsBody?.isDynamic = true
+        addChild(enemy)
+
+        let move = SKAction.moveTo(y: -40, duration: 5.0)
+        let remove = SKAction.removeFromParent()
+        let damage = SKAction.run {
+            if !self.isGameOver {
+                self.health -= 1
+                self.updateLabels()
+                self.checkGameOver()
+            }
+        }
+        enemy.run(SKAction.sequence([move, damage, remove]))
+    }
+
+    func spawnBoss() {
+        let boss = SKSpriteNode(color: .magenta, size: CGSize(width: 100, height: 100))
+        boss.position = CGPoint(x: size.width / 2, y: size.height + 100)
+        boss.physicsBody = SKPhysicsBody(rectangleOf: boss.size)
+        boss.physicsBody?.categoryBitMask = enemyCategory
+        boss.physicsBody?.contactTestBitMask = bulletCategory | playerCategory
+        boss.physicsBody?.collisionBitMask = 0
+        boss.physicsBody?.isDynamic = true
+        boss.name = "boss"
+        boss.userData = ["health": 10]
+        addChild(boss)
+
+        let move = SKAction.moveTo(y: size.height - 150, duration: 3.0)
+        boss.run(move)
     }
 
     @objc func fireBullet() {
+        if isGameOver { return }
+
+        let now = Date()
+        guard now.timeIntervalSince(lastFireTime) > 0.3 else { return }
+        lastFireTime = now
+
         let bullet = SKSpriteNode(color: .green, size: CGSize(width: 5, height: 20))
         bullet.position = CGPoint(x: player.position.x, y: player.position.y + 30)
+        bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.size)
+        bullet.physicsBody?.categoryBitMask = bulletCategory
+        bullet.physicsBody?.contactTestBitMask = enemyCategory
+        bullet.physicsBody?.collisionBitMask = 0
+        bullet.physicsBody?.isDynamic = true
+        bullet.physicsBody?.usesPreciseCollisionDetection = true
         addChild(bullet)
 
-        let moveUp = SKAction.moveBy(x: 0, y: size.height, duration: 1.0)
+        let move = SKAction.moveTo(y: size.height + 50, duration: 1.0)
         let remove = SKAction.removeFromParent()
-        bullet.run(SKAction.sequence([moveUp, remove]))
+        bullet.run(SKAction.sequence([move, remove]))
+    }
+
+    func didBegin(_ contact: SKPhysicsContact) {
+        let (a, b) = (contact.bodyA.node, contact.bodyB.node)
+
+        // Bullet hits enemy
+        if let bullet = (a?.physicsBody?.categoryBitMask == bulletCategory ? a : b),
+           let enemy = (a?.physicsBody?.categoryBitMask == enemyCategory ? a : b),
+           bullet != enemy {
+            
+            bullet.removeFromParent()
+            
+            if enemy.name == "boss" {
+                var hp = enemy.userData?["health"] as? Int ?? 0
+                hp -= 1
+                if hp <= 0 {
+                    enemy.removeFromParent()
+                    score += 10
+                    gameOver(won: true)
+                } else {
+                    enemy.userData?["health"] = hp
+                }
+            } else {
+                enemy.removeFromParent()
+                score += 1
+                updateLabels()
+            }
+        }
+
+        // Enemy hits player
+        if (a == player || b == player),
+           let enemy = (a == player ? b : a) {
+            enemy?.removeFromParent()
+            health -= 1
+            updateLabels()
+            checkGameOver()
+        }
+    }
+
+    func checkGameOver() {
+        if health <= 0 {
+            gameOver(won: false)
+        }
+    }
+
+    func updateLabels() {
+        scoreLabel.text = "Score: \(score)"
+        healthLabel.text = "Health: \(health)"
+    }
+
+    func gameOver(won: Bool) {
+        isGameOver = true
+        gameOverLabel.text = won ? "YOU WIN!" : "GAME OVER"
+        gameOverLabel.isHidden = false
+    }
+
+    func restartGame() {
+        removeAllChildren()
+        removeAllActions()
+        isGameOver = false
+        finalBossSpawned = false
+        score = 0
+        health = 3
+        didMove(to: self.view!)
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -34,18 +203,42 @@ class GameScene: SKScene {
     }
 }
 
-// 2. SwiftUI View that shows the SpriteKit scene
+// MARK: - SwiftUI View
 struct ContentView: View {
-    var scene: SKScene {
-        let scene = GameScene()
-        scene.size = CGSize(width: 400, height: 600)
-        scene.scaleMode = .resizeFill
-        return scene
-    }
+    @State private var scene = GameScene(size: CGSize(width: 400, height: 600))
+    @State private var isPaused = false
 
     var body: some View {
-        SpriteView(scene: scene)
+        ZStack {
+            SpriteView(scene: scene)
+                .frame(width: 400, height: 600)
+                .ignoresSafeArea()
+                .blur(radius: scene.isGameOver ? 5 : 0)
+
+            VStack {
+                HStack {
+                    Button(action: {
+                        isPaused.toggle()
+                        scene.isPaused = isPaused
+                    }) {
+                        Text(isPaused ? "Resume" : "Pause")
+                            .padding()
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(10)
+                    }
+                    Spacer()
+                    Button("Restart") {
+                        scene.restartGame()
+                    }
+                    .padding()
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(10)
+                }
+                .padding()
+
+                Spacer()
+            }
             .frame(width: 400, height: 600)
-            .ignoresSafeArea()
+        }
     }
 }

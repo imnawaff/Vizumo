@@ -205,40 +205,50 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
 // MARK: - SwiftUI View
 struct ContentView: View {
-    @State private var scene = GameScene(size: CGSize(width: 400, height: 600))
+    @State private var scene = GameScene(size: UIScreen.main.bounds.size)
     @State private var isPaused = false
 
     var body: some View {
-        ZStack {
-            SpriteView(scene: scene)
-                .frame(width: 400, height: 600)
-                .ignoresSafeArea()
-                .blur(radius: scene.isGameOver ? 5 : 0)
+        GeometryReader { geo in
+            ZStack {
+                SpriteView(scene: scene)
+                    .ignoresSafeArea()
+                    .onAppear {
+                        scene.size = geo.size
+                    }
 
-            VStack {
-                HStack {
-                    Button(action: {
-                        isPaused.toggle()
-                        scene.isPaused = isPaused
-                    }) {
-                        Text(isPaused ? "Resume" : "Pause")
-                            .padding()
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(10)
-                    }
-                    Spacer()
-                    Button("Restart") {
-                        scene.restartGame()
-                    }
-                    .padding()
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(10)
+                if scene.isGameOver {
+                    Color.black.opacity(0.6).ignoresSafeArea()
                 }
-                .padding()
 
-                Spacer()
+                VStack {
+                    Spacer()
+
+                    HStack(spacing: 40) {
+                        Button(action: {
+                            isPaused.toggle()
+                            scene.isPaused = isPaused
+                        }) {
+                            Text(isPaused ? "Resume" : "Pause")
+                                .font(.title2)
+                                .padding()
+                                .background(Color.white.opacity(0.2))
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+
+                        Button("Restart") {
+                            scene.restartGame()
+                        }
+                        .font(.title2)
+                        .padding()
+                        .background(Color.white.opacity(0.2))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .padding(.bottom, 30)
+                }
             }
-            .frame(width: 400, height: 600)
         }
     }
 }
